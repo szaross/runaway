@@ -1,4 +1,4 @@
-.PHONY: help install install-dev test lint format check c clean
+.PHONY: help install install-dev test lint format format-check check c clean
 
 help:
 	@echo "Available commands:"
@@ -7,7 +7,8 @@ help:
 	@echo "  make test          Run pytest"
 	@echo "  make lint          Check code style with ruff"
 	@echo "  make format        Format code with ruff"
-	@echo "  make check (c)     Run lint and test (pre-commit checks)"
+	@echo "  make format-check  Check formatting without modifying files"
+	@echo "  make check (c)     Run lint, format check, and test (pre-commit checks)"
 	@echo "  make clean         Remove build artifacts and cache"
 
 install:
@@ -25,7 +26,10 @@ lint:
 format:
 	ruff format .
 
-check: lint test
+format-check:
+	ruff format --check .
+
+check: lint format-check test
 
 c: check
 
@@ -33,3 +37,4 @@ clean:
 	rm -rf build/ dist/ *.egg-info .pytest_cache/ .ruff_cache/ **/__pycache__
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete
+

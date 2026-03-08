@@ -23,11 +23,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install '.[dev]'
 
-      - name: Ruff lint
-        run: ruff check .
+      - name: Lint check
+        run: make lint
 
-      - name: Ruff format check
-        run: ruff format --check .
+      - name: Format check
+        run: make format-check
 
       - name: Run tests
-        run: pytest -q
+        run: make test
