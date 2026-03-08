@@ -22,9 +22,9 @@ Agent-based evacuation simulation for building layouts using the Mesa library.
 │       ├── model.py
 │       └── scenarios/
 │           ├── __init__.py
-│           └── simple_floor.py
+│           └── d17.py
 └── tests/
-	└── test_model.py
+	└── test_fake.py
 ```
 
 ## Quick Start
@@ -32,32 +32,10 @@ Agent-based evacuation simulation for building layouts using the Mesa library.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e .[dev]
+make install-dev
 runaway --steps 100 --agents 60 --width 25 --height 18
 ```
 
-## Run Tests
-
-```bash
-pytest
-```
-
-## Code Formatting
-
-Format all Python files:
-
-```bash
-ruff format .
-```
-
-Run lint checks (including import order):
-
-```bash
-ruff check .
-```
-
-Auto-fix lint issues when possible:
-
-```bash
-ruff check . --fix
-```
+## Authors
+- Szymon Szarek
+- Kamil Rudny
