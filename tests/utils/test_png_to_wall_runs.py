@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import pytest
+pytest.importorskip("PIL")
 from PIL import Image
 
 from runaway.utils.png_to_wall_runs import (
