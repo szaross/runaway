@@ -77,7 +77,7 @@ class EvacuationModel(Model):
             }
         )
 
-    def _compute_static_field(self) -> dict[tuple[int, int], int]:
+    def _compute_static_field(self) -> dict[tuple[int, int], float]:
         """Compute shortest path distance to the nearest exit for each walkable cell."""
         distance = {cell: inf for cell in self.walkable}
         queue: deque[tuple[int, int]] = deque()
