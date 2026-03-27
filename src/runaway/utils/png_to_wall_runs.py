@@ -5,8 +5,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from PIL import Image
-
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
@@ -34,6 +32,12 @@ def rgb_to_value(pixel: tuple[int, int, int], *, strict: bool = False) -> int:
 
 
 def png_to_matrix(image_path: str | Path, *, strict: bool = False) -> list[list[int]]:
+    try:
+        from PIL import Image
+    except ImportError as exc:
+        raise ImportError(
+            "png_to_matrix requires Pillow. Install it with: pip install 'runaway[png]'"
+        ) from exc
     with Image.open(image_path) as image:
         image = image.convert("RGB")
         width, height = image.size

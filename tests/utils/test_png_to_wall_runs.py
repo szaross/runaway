@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 
 import pytest
-pytest.importorskip("PIL")
-from PIL import Image
 
 from runaway.utils.png_to_wall_runs import (
     matrix_to_wall_runs_payload,
@@ -13,6 +11,8 @@ from runaway.utils.png_to_wall_runs import (
     save_wall_runs_json,
     wall_runs_payload_to_matrix,
 )
+
+pytest.importorskip("PIL")
 
 
 def test_rgb_to_value_exact_colors() -> None:
@@ -33,6 +33,8 @@ def test_rgb_to_value_strict_raises_on_unknown() -> None:
 
 
 def test_png_to_matrix_and_wall_runs_export(tmp_path) -> None:
+    from PIL import Image
+
     image_path = tmp_path / "sample.png"
     output_path = tmp_path / "wall-runs.json"
 
