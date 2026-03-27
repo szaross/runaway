@@ -34,16 +34,17 @@ def rgb_to_value(pixel: tuple[int, int, int], *, strict: bool = False) -> int:
 
 
 def png_to_matrix(image_path: str | Path, *, strict: bool = False) -> list[list[int]]:
-    image = Image.open(image_path).convert("RGB")
-    width, height = image.size
-    pixels = image.load()
-    matrix: list[list[int]] = []
+    with Image.open(image_path) as image:
+        image = image.convert("RGB")
+        width, height = image.size
+        pixels = image.load()
+        matrix: list[list[int]] = []
 
-    for y in range(height):
-        row: list[int] = []
-        for x in range(width):
-            row.append(rgb_to_value(pixels[x, y], strict=strict))
-        matrix.append(row)
+        for y in range(height):
+            row: list[int] = []
+            for x in range(width):
+                row.append(rgb_to_value(pixels[x, y], strict=strict))
+            matrix.append(row)
 
     return matrix
 
