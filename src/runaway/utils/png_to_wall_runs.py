@@ -133,7 +133,7 @@ def main() -> None:
     save_wall_runs_json(matrix, args.output, pretty=args.pretty)
     height = len(matrix)
     width = len(matrix[0]) if matrix else 0
-    print(f"Saved wall-runs from {height}x{width} PNG to {args.output}")
+    print(f"Saved wall-runs from {width}x{height} PNG to {args.output}")
 
 
 if __name__ == "__main__":
