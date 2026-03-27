@@ -1,6 +1,131 @@
 from __future__ import annotations
 
+import json
+from collections import deque
+from functools import lru_cache
+from importlib.resources import as_file, files
+from typing import Any
 
-def build_d17():
-    """Create a D17 floor plan with walls, exits, and spawn points."""
-    pass
+_BASE_WIDTH = 2938
+_BASE_HEIGHT = 1662
+_MIN_WIDTH = 160
+_MIN_HEIGHT = 90
+
+
+def _validate_grid(width: int, height: int) -> None:
+    if width < _MIN_WIDTH or height < _MIN_HEIGHT:
+        raise ValueError(f"D17 layout requires at least {_MIN_WIDTH}x{_MIN_HEIGHT} grid.")
+
+    # Keep D17 aspect ratio from the source wall-runs with small scaling tolerance.
+    ratio_error = abs(width * _BASE_HEIGHT - height * _BASE_WIDTH)
+    tolerance = max(_BASE_HEIGHT, width * _BASE_HEIGHT // 80)
+    if ratio_error > tolerance:
+        raise ValueError(
+            f"D17 layout expects approximately {_BASE_WIDTH}:{_BASE_HEIGHT} aspect ratio."
+        )
+
+
+def _scale_x(x: int, width: int) -> int:
+    return round(x * (width - 1) / (_BASE_WIDTH - 1))
+
+
+def _scale_y(y: int, height: int) -> int:
+    # Image coordinates grow downward; Mesa grid grows upward.
+    return round(((_BASE_HEIGHT - 1) - y) * (height - 1) / (_BASE_HEIGHT - 1))
+
+
+@lru_cache(maxsize=1)
+def _load_wall_runs_payload() -> dict[str, Any]:
+    payload: dict[str, Any] | None = None
+    resource = files("runaway.scenarios").joinpath("d17-wall-runs.json")
+    try:
+        with as_file(resource) as data_path:
+            with data_path.open("r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+    except FileNotFoundError:
+        payload = None
+
+    if payload is None:
+        raise FileNotFoundError("Missing packaged D17 wall-runs JSON in runaway.scenarios.")
+
+    if payload.get("encoding") != "wall-runs-rb-v1":
+        raise ValueError("Unsupported D17 wall-runs encoding.")
+    if int(payload.get("width", 0)) != _BASE_WIDTH or int(payload.get("height", 0)) != _BASE_HEIGHT:
+        raise ValueError("Unexpected D17 wall-runs base resolution.")
+    return payload
+
+
+def _scale_runs_to_cells(runs: list[list[int]], width: int, height: int) -> set[tuple[int, int]]:
+    cells: set[tuple[int, int]] = set()
+    for y, x_start, x_end in runs:
+        sy = _scale_y(int(y), height)
+        sx0 = _scale_x(int(x_start), width)
+        sx1 = _scale_x(int(x_end), width)
+        if sx1 < sx0:
+            sx0, sx1 = sx1, sx0
+        for sx in range(sx0, sx1 + 1):
+            cells.add((sx, sy))
+    return cells
+
+
+def _interior_cells(
+    width: int, height: int, walls: set[tuple[int, int]], exits: set[tuple[int, int]]
+) -> set[tuple[int, int]]:
+    blocked = walls | exits
+    outside: set[tuple[int, int]] = set()
+    queue: deque[tuple[int, int]] = deque()
+
+    for x in range(width):
+        for y in (0, height - 1):
+            if (x, y) not in blocked and (x, y) not in outside:
+                outside.add((x, y))
+                queue.append((x, y))
+    for y in range(height):
+        for x in (0, width - 1):
+            if (x, y) not in blocked and (x, y) not in outside:
+                outside.add((x, y))
+                queue.append((x, y))
+
+    while queue:
+        x, y = queue.popleft()
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if not (0 <= nx < width and 0 <= ny < height):
+                continue
+            if (nx, ny) in blocked or (nx, ny) in outside:
+                continue
+            outside.add((nx, ny))
+            queue.append((nx, ny))
+
+    return {
+        (x, y)
+        for x in range(width)
+        for y in range(height)
+        if (x, y) not in blocked and (x, y) not in outside
+    }
+
+
+def build_d17(
+    width: int, height: int
+) -> tuple[set[tuple[int, int]], set[tuple[int, int]], list[tuple[int, int]]]:
+    """Build D17 floor layout from wall-runs: walls, exits, and spawn points."""
+    _validate_grid(width, height)
+    payload = _load_wall_runs_payload()
+
+    walls = _scale_runs_to_cells(payload["red_runs"], width, height)
+    exits = _scale_runs_to_cells(payload["blue_runs"], width, height)
+    walls -= exits
+
+    inside_cells = _interior_cells(width, height, walls, exits)
+    spawn_points = [
+        (x, y)
+        for x in range(width)
+        for y in range(height)
+        if (x, y) in inside_cells and (x, y) not in walls and (x, y) not in exits
+    ]
+
+    if not exits:
+        raise ValueError("D17 layout produced no exits.")
+    if len(spawn_points) < 20:
+        raise ValueError("D17 layout produced too few spawn cells.")
+
+    return walls, exits, spawn_points
