@@ -116,12 +116,7 @@ def build_d17(
     walls -= exits
 
     inside_cells = _interior_cells(width, height, walls, exits)
-    spawn_points = [
-        (x, y)
-        for x in range(width)
-        for y in range(height)
-        if (x, y) in inside_cells and (x, y) not in walls and (x, y) not in exits
-    ]
+    spawn_points = sorted(inside_cells)
 
     if not exits:
         raise ValueError("D17 layout produced no exits.")
