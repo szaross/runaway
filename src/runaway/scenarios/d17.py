@@ -6,6 +6,8 @@ from functools import lru_cache
 from importlib.resources import as_file, files
 from typing import Any
 
+from runaway.floors import FloorSpec, TransferLink
+
 _BASE_WIDTH = 2938
 _BASE_HEIGHT = 1662
 _MIN_WIDTH = 160
@@ -124,3 +126,57 @@ def build_d17(
         raise ValueError("D17 layout produced too few spawn cells.")
 
     return walls, exits, spawn_points
+
+
+def _default_stair_cells(spawn_points: list[tuple[int, int]]) -> list[tuple[int, int]]:
+    if len(spawn_points) < 4:
+        raise ValueError("D17 layout produced too few spawn cells for stairs.")
+
+    anchors = (
+        spawn_points[len(spawn_points) // 5],
+        spawn_points[(len(spawn_points) * 2) // 5],
+        spawn_points[(len(spawn_points) * 3) // 5],
+        spawn_points[(len(spawn_points) * 4) // 5],
+    )
+    # Keep deterministic ordering while dropping duplicates.
+    return sorted(set(anchors))
+
+
+def build_multifloor_d17(
+    width: int,
+    height: int,
+    floors_count: int,
+    *,
+    vertical_links_mode: str = "default_stairs",
+) -> tuple[list[FloorSpec], list[TransferLink]]:
+    if floors_count < 1:
+        raise ValueError("floors_count must be >= 1")
+    if vertical_links_mode != "default_stairs":
+        raise ValueError("Unsupported vertical links mode.")
+
+    base_walls, base_exits, base_spawn_points = build_d17(width, height)
+    floor_specs = [
+        FloorSpec(
+            level=floor,
+            walls=set(base_walls),
+            exits=set(base_exits),
+            spawn_points=list(base_spawn_points),
+        )
+        for floor in range(floors_count)
+    ]
+
+    stair_cells = _default_stair_cells(base_spawn_points)
+    transfer_links: list[TransferLink] = []
+    for lower_floor in range(floors_count - 1):
+        upper_floor = lower_floor + 1
+        for x, y in stair_cells:
+            transfer_links.append(
+                TransferLink(
+                    source=(lower_floor, x, y),
+                    target=(upper_floor, x, y),
+                    cost=1,
+                    bidirectional=True,
+                )
+            )
+
+    return floor_specs, transfer_links

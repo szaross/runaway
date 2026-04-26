@@ -26,6 +26,8 @@ def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
         ) from exc
 
     def portrayal(agent):
+        snapshot = agent.model.latest_snapshot
+
         if isinstance(agent, WallCell):
             return {
                 "Shape": "rect",
@@ -47,9 +49,14 @@ def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
             }
 
         if isinstance(agent, EvacueeAgent):
+            floor = agent.position[0] if agent.position is not None else 0
+            transfer_nodes = snapshot.transfer_nodes.get(floor, set())
+            is_on_transfer = (
+                agent.position is not None and (agent.position[1], agent.position[2]) in transfer_nodes
+            )
             return {
                 "Shape": "circle",
-                "Color": "#2563eb",
+                "Color": "#7c3aed" if is_on_transfer else "#2563eb",
                 "Filled": "true",
                 "Layer": 2,
                 "r": 0.7,
@@ -72,6 +79,8 @@ def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
             n_agents=config.n_agents,
             max_steps=config.max_steps,
             seed=config.seed,
+            floors_count=config.floors_count,
+            vertical_links_mode=config.vertical_links_mode,
         )
     }
 

@@ -2,7 +2,7 @@ from importlib.resources import files
 
 import pytest
 
-from runaway.scenarios import build_d17
+from runaway.scenarios import build_d17, build_multifloor_d17
 
 
 def test_d17_layout_full_contains_exits_and_spawns() -> None:
@@ -95,3 +95,13 @@ def test_d17_small_exits_touch_walkable_interior() -> None:
 def test_d17_wall_runs_json_is_packaged() -> None:
     resource = files("runaway.scenarios").joinpath("d17-wall-runs.json")
     assert resource.is_file()
+
+
+def test_multifloor_d17_clones_layout_and_adds_stairs() -> None:
+    floors, links = build_multifloor_d17(320, 181, 3, vertical_links_mode="default_stairs")
+
+    assert len(floors) == 3
+    assert floors[0].walls == floors[1].walls == floors[2].walls
+    assert floors[0].exits == floors[1].exits == floors[2].exits
+    assert links
+    assert any(link.source[0] != link.target[0] for link in links)

@@ -18,6 +18,9 @@ dev = [
   "pytest>=8.0",
   "ruff>=0.6",
 ]
+pygame = [
+  "pygame>=2.5",
+]
 png = [
   "Pillow",
 ]
@@ -25,6 +28,7 @@ png = [
 [project.scripts]
 runaway = "runaway.cli:main"
 runaway-png2runs = "runaway.utils.png_to_wall_runs:main"
+runaway-batch = "runaway.batch:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

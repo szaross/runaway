@@ -4,6 +4,8 @@ from math import inf
 
 from mesa import Agent
 
+from runaway.floors import Cell3D
+
 
 class WallCell(Agent):
     """Static wall marker used only for visualization."""
@@ -34,7 +36,7 @@ class EvacueeAgent(Agent):
         self,
         unique_id: int,
         model,
-        start_pos: tuple[int, int],
+        start_pos: Cell3D,
     ) -> None:
         try:
             super().__init__(unique_id, model)
@@ -42,7 +44,7 @@ class EvacueeAgent(Agent):
             super().__init__(model)
             self.unique_id = unique_id
 
-        self.position: tuple[int, int] | None = start_pos
+        self.position: Cell3D | None = start_pos
         self.evacuated = False
 
     def step(self) -> None:
@@ -54,8 +56,8 @@ class EvacueeAgent(Agent):
             model.mark_evacuated(self)
             return
 
-        neighbors = model.neighbors4(self.position)
-        candidates: list[tuple[tuple[int, int], float]] = []
+        neighbors = model.neighbors(self.position)
+        candidates: list[tuple[Cell3D, float]] = []
         for nxt in neighbors:
             if nxt not in model.exits and model.is_occupied(nxt):
                 continue
