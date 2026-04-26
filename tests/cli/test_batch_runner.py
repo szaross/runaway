@@ -1,7 +1,7 @@
 import csv
 import sys
 
-from runaway import batch
+from runaway.experiments.batch import main
 
 
 def test_batch_runner_creates_summary_and_history(tmp_path) -> None:
@@ -20,7 +20,7 @@ def test_batch_runner_creates_summary_and_history(tmp_path) -> None:
         "5",
     ]
     try:
-        batch.main()
+        main()
     finally:
         sys.argv = old_argv
 

@@ -1,5 +1,5 @@
-from runaway.model import AgentSnapshot, SimulationSnapshot
-from runaway.pygame_visualization import frame_for_floor
+from runaway.core.model import AgentSnapshot, SimulationSnapshot
+from runaway.renderers.pygame import frame_for_floor
 
 
 def _sample_snapshot() -> SimulationSnapshot:

@@ -3,8 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from runaway import cli
-from runaway.cli import _adaptive_visualization_grid
+from runaway.cli.main import _adaptive_visualization_grid, main
 
 
 def test_adaptive_visualization_grid_is_dense_but_safe() -> None:
@@ -20,7 +19,7 @@ def test_cli_rejects_only_width() -> None:
     sys.argv = ["runaway", "--width", "800"]
     try:
         with pytest.raises(SystemExit) as exc:
-            cli.main()
+            main()
         assert exc.value.code == 2
     finally:
         sys.argv = old_argv
@@ -31,7 +30,7 @@ def test_cli_rejects_only_height() -> None:
     sys.argv = ["runaway", "--height", "453"]
     try:
         with pytest.raises(SystemExit) as exc:
-            cli.main()
+            main()
         assert exc.value.code == 2
     finally:
         sys.argv = old_argv
@@ -55,7 +54,7 @@ def test_cli_exports_history_file(tmp_path: Path, suffix: str) -> None:
         str(history_path),
     ]
     try:
-        cli.main()
+        main()
     finally:
         sys.argv = old_argv
 
@@ -81,7 +80,7 @@ def test_cli_exports_summary_json(tmp_path: Path) -> None:
         str(summary_path),
     ]
     try:
-        cli.main()
+        main()
     finally:
         sys.argv = old_argv
 
@@ -95,7 +94,7 @@ def test_cli_rejects_non_positive_floors() -> None:
     sys.argv = ["runaway", "--floors", "0"]
     try:
         with pytest.raises(SystemExit) as exc:
-            cli.main()
+            main()
         assert exc.value.code == 2
     finally:
         sys.argv = old_argv

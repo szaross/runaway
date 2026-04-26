@@ -1,5 +1,5 @@
-from runaway.config import SimulationConfig
-from runaway.model import EvacuationModel
+from runaway.core.config import SimulationConfig
+from runaway.core.model import EvacuationModel
 
 
 def test_model_run_keeps_agent_accounting_consistent() -> None:
@@ -49,7 +49,9 @@ def test_multifloor_uses_vertical_links() -> None:
 
 
 def test_snapshot_exposes_floor_aware_state() -> None:
-    config = SimulationConfig(width=320, height=181, n_agents=30, max_steps=5, seed=2, floors_count=2)
+    config = SimulationConfig(
+        width=320, height=181, n_agents=30, max_steps=5, seed=2, floors_count=2
+    )
     model = EvacuationModel(config)
     snap = model.snapshot()
 

@@ -18,10 +18,22 @@ Agent-based evacuation simulation for building layouts using the Mesa library.
 ├── src/
 │   └── runaway/
 │       ├── __init__.py
-│       ├── agents.py
-│       ├── cli.py
-│       ├── config.py
-│       ├── model.py
+│       ├── core/
+│       │   ├── agents.py
+│       │   ├── config.py
+│       │   ├── floors.py
+│       │   └── model.py
+│       ├── cli/
+│       │   ├── grid_presets.py
+│       │   └── main.py
+│       ├── renderers/
+│       │   ├── base.py
+│       │   ├── mesa.py
+│       │   └── pygame.py
+│       ├── experiments/
+│       │   ├── batch.py
+│       │   ├── plan.py
+│       │   └── results.py
 │       ├── scenarios/
 │       │   ├── __init__.py
 │       │   ├── d17.py
@@ -33,9 +45,13 @@ Agent-based evacuation simulation for building layouts using the Mesa library.
     ├── cli/
     ├── model/
     ├── scenarios/
-    └── utils/
-        └── test_png_to_wall_runs.py
+    ├── utils/
+    └── visualization/
 ```
+
+Note:
+- root-level modules like `runaway.model` and `runaway.cli` are kept as compatibility shims,
+- new development should target subpackages (`runaway.core`, `runaway.renderers`, `runaway.cli.main`, `runaway.experiments`).
 
 ## Quick Start
 
@@ -122,7 +138,7 @@ The project reports a stable set of run-level metrics:
 - `evacuation_ratio`, `fully_evacuated`
 - `peak_remaining`, `avg_remaining`, `peak_evacuated`
 
-Default experimental scenario matrix (`runaway.experiment_plan`):
+Default experimental scenario matrix (`runaway.experiments.plan`):
 - `light-load`: 80 agents, 250 steps, `small` preset
 - `medium-load`: 180 agents, 320 steps, `small` preset
 - `heavy-load`: 320 agents, 420 steps, `small` preset

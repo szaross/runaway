@@ -102,6 +102,8 @@ def test_multifloor_d17_clones_layout_and_adds_stairs() -> None:
 
     assert len(floors) == 3
     assert floors[0].walls == floors[1].walls == floors[2].walls
-    assert floors[0].exits == floors[1].exits == floors[2].exits
+    assert floors[0].exits
+    assert floors[1].exits == set()
+    assert floors[2].exits == set()
     assert links
     assert any(link.source[0] != link.target[0] for link in links)

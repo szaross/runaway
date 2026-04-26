@@ -159,7 +159,7 @@ def build_multifloor_d17(
         FloorSpec(
             level=floor,
             walls=set(base_walls),
-            exits=set(base_exits),
+            exits=set(base_exits) if floor == 0 else set(),
             spawn_points=list(base_spawn_points),
         )
         for floor in range(floors_count)
