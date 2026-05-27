@@ -5,7 +5,7 @@ from importlib import import_module
 
 import mesa
 
-from runaway.core.agents import EvacueeAgent, ExitCell, WallCell
+from runaway.core.agents import EvacueeAgent, ExitCell, StairCell, WallCell
 from runaway.core.config import SimulationConfig
 from runaway.core.model import EvacuationModel
 from runaway.statistics.charts import create_evacuation_charts
@@ -53,6 +53,16 @@ def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
                 "h": 1,
             }
 
+        if isinstance(agent, StairCell):
+            return {
+                "Shape": "rect",
+                "Color": "#f59e0b",
+                "Filled": "true",
+                "Layer": 1,
+                "w": 1,
+                "h": 1,
+            }
+
         if isinstance(agent, EvacueeAgent):
             floor = agent.position[0] if agent.position is not None else 0
             transfer_nodes = snapshot.transfer_nodes.get(floor, set())
@@ -70,13 +80,10 @@ def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
 
         return {}
 
-    # For multi-floor, limit canvas pixel size to stay performant.
-    if config.floors_count == 1:
-        canvas_w = min(config.width * 3, 2400)
-        canvas_h = min(config.height * 3, 1050)
-    else:
-        canvas_w = min(config.width * 2, 1200)
-        canvas_h = min(config.height * config.floors_count * 2, 1050)
+    # Canvas pixel size: ensure ~3px per cell for visibility.
+    # For multi-floor the canvas is tall but floor-switching JS zooms into one floor.
+    canvas_w = min(config.width * 3, 2400)
+    canvas_h = min(config.height * config.floors_count * 3, config.floors_count * 1050)
 
     grid = CanvasGrid(
         portrayal,
@@ -95,6 +102,7 @@ def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
             seed=config.seed,
             floors_count=config.floors_count,
             vertical_links_mode=config.vertical_links_mode,
+            stair_traversal_cost=config.stair_traversal_cost,
         )
     }
 

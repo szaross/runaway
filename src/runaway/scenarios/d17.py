@@ -128,18 +128,32 @@ def build_d17(
     return walls, exits, spawn_points
 
 
-def _default_stair_cells(spawn_points: list[tuple[int, int]]) -> list[tuple[int, int]]:
+def _default_stair_cells(
+    spawn_points: list[tuple[int, int]],
+    width: int,
+    height: int,
+) -> list[tuple[int, int]]:
+    """Create a single staircase block in the center of the building interior."""
     if len(spawn_points) < 4:
         raise ValueError("D17 layout produced too few spawn cells for stairs.")
 
-    anchors = (
-        spawn_points[len(spawn_points) // 5],
-        spawn_points[(len(spawn_points) * 2) // 5],
-        spawn_points[(len(spawn_points) * 3) // 5],
-        spawn_points[(len(spawn_points) * 4) // 5],
-    )
-    # Keep deterministic ordering while dropping duplicates.
-    return sorted(set(anchors))
+    spawn_set = set(spawn_points)
+
+    # Find the center of mass of interior cells
+    cx = sum(x for x, _ in spawn_points) // len(spawn_points) - 6
+    cy = sum(y for _, y in spawn_points) // len(spawn_points)
+
+    # Find the closest spawn cell to center
+    center = min(spawn_points, key=lambda p: (p[0] - cx) ** 2 + (p[1] - cy) ** 2)
+    stair_radius = 2
+    expanded: set[tuple[int, int]] = set()
+    for dx in range(-stair_radius, stair_radius + 1):
+        for dy in range(-stair_radius, stair_radius + 1):
+            nx, ny = center[0] + dx, center[1] + dy
+            if 0 <= nx < width and 0 <= ny < height and (nx, ny) in spawn_set:
+                expanded.add((nx, ny))
+
+    return sorted(expanded)
 
 
 def build_multifloor_d17(
@@ -148,6 +162,7 @@ def build_multifloor_d17(
     floors_count: int,
     *,
     vertical_links_mode: str = "default_stairs",
+    stair_traversal_cost: int = 1,
 ) -> tuple[list[FloorSpec], list[TransferLink]]:
     if floors_count < 1:
         raise ValueError("floors_count must be >= 1")
@@ -155,17 +170,19 @@ def build_multifloor_d17(
         raise ValueError("Unsupported vertical links mode.")
 
     base_walls, base_exits, base_spawn_points = build_d17(width, height)
+    # On upper floors, exit positions become walls (no gaps).
+    upper_walls = base_walls | base_exits
     floor_specs = [
         FloorSpec(
             level=floor,
-            walls=set(base_walls),
+            walls=set(base_walls) if floor == 0 else set(upper_walls),
             exits=set(base_exits) if floor == 0 else set(),
             spawn_points=list(base_spawn_points),
         )
         for floor in range(floors_count)
     ]
 
-    stair_cells = _default_stair_cells(base_spawn_points)
+    stair_cells = _default_stair_cells(base_spawn_points, width, height)
     transfer_links: list[TransferLink] = []
     for lower_floor in range(floors_count - 1):
         upper_floor = lower_floor + 1
@@ -174,7 +191,7 @@ def build_multifloor_d17(
                 TransferLink(
                     source=(lower_floor, x, y),
                     target=(upper_floor, x, y),
-                    cost=1,
+                    cost=stair_traversal_cost,
                     bidirectional=True,
                 )
             )

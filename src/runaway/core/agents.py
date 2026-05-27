@@ -30,6 +30,17 @@ class ExitCell(Agent):
             self.unique_id = unique_id
 
 
+class StairCell(Agent):
+    """Static staircase marker used only for visualization."""
+
+    def __init__(self, unique_id: str, model) -> None:
+        try:
+            super().__init__(unique_id, model)
+        except TypeError:
+            super().__init__(model)
+            self.unique_id = unique_id
+
+
 class EvacueeAgent(Agent):
     """A person attempting to reach the nearest exit."""
 
@@ -55,6 +66,7 @@ class EvacueeAgent(Agent):
         self.start_floor: int | None = None
         self.steps_taken: int = 0
         self.evacuation_step: int | None = None
+        self._stair_delay: int = 0
 
     def _congestion_at(self, pos: Cell3D) -> int:
         model = self.model
@@ -67,6 +79,12 @@ class EvacueeAgent(Agent):
         model = self.model
         if self.position in model.exits:
             model.mark_evacuated(self)
+            return
+
+        # Wait out stair traversal delay
+        if self._stair_delay > 0:
+            self._stair_delay -= 1
+            self.steps_taken += 1
             return
 
         neighbors = model.neighbors(self.position)
@@ -98,6 +116,12 @@ class EvacueeAgent(Agent):
             if r <= cumulative:
                 target = cell
                 break
+
+        # Apply stair traversal delay for cross-floor moves
+        if target[0] != self.position[0]:
+            cost = model.transfer_cost(self.position, target)
+            if cost > 1:
+                self._stair_delay = cost - 1
 
         self.steps_taken += 1
         model.move_agent(self, target)

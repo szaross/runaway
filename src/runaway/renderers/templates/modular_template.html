@@ -79,13 +79,19 @@
             overflow: hidden;
         }
         canvas.world-grid {
-            position: relative !important;
+            position: relative;
             display: block;
-            max-width: 100% !important;
-            max-height: 100% !important;
-            width: auto !important;
-            height: auto !important;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
             object-fit: contain;
+        }
+        /* Multi-floor: JS will override canvas positioning via .multifloor-canvas class */
+        .world-grid-parent.multifloor canvas.world-grid {
+            position: absolute !important;
+            max-width: none !important;
+            max-height: none !important;
         }
         /* Hide the interaction overlay canvas (second world-grid) */
         .world-grid-parent canvas.world-grid:nth-child(2) {
@@ -169,15 +175,48 @@
 
         function updateCanvas() {
             if (floorsCount <= 1) return;
-            var canvases = document.querySelectorAll('.world-grid-parent canvas.world-grid');
+            var parent = document.querySelector('.world-grid-parent');
+            if (!parent) return;
+            parent.classList.add('multifloor');
+
+            var canvases = parent.querySelectorAll('canvas.world-grid');
+            if (!canvases.length) return;
+
+            var parentW = parent.clientWidth;
+            var parentH = parent.clientHeight;
+            var canvasW = canvases[0].width;
+            var canvasH = canvases[0].height;
+            var floorH = canvasH / floorsCount;
+
+            // Scale so one floor fills the parent area
+            var scaleX = parentW / canvasW;
+            var scaleY = parentH / floorH;
+            var scale = Math.min(scaleX, scaleY);
+
+            var displayedW = canvasW * scale;
+            var displayedFloorH = floorH * scale;
+            var leftOffset = (parentW - displayedW) / 2;
+            var topOffset = (parentH - displayedFloorH) / 2;
+
+            // In Mesa canvas: floor 0 is at bottom (high y-pixel), floor N-1 at top (low y-pixel).
+            // Canvas pixel row for floor f top = (floorsCount - 1 - f) * floorH
+            var floorTopInCanvas = (floorsCount - 1 - currentFloor) * floorH;
+
             canvases.forEach(function(canvas) {
-                // Floor 0 is at the bottom of the canvas, floor N-1 at the top.
-                // clip-path inset(top right bottom left)
-                var floorHeight = 100 / floorsCount;
-                var topClip = (floorsCount - 1 - currentFloor) * floorHeight;
-                var bottomClip = currentFloor * floorHeight;
-                canvas.style.clipPath = 'inset(' + topClip + '% 0% ' + bottomClip + '% 0%)';
+                canvas.style.transformOrigin = '0 0';
+                canvas.style.transform = 'scale(' + scale + ')';
+                canvas.style.left = leftOffset + 'px';
+                canvas.style.top = (topOffset - floorTopInCanvas * scale) + 'px';
+                canvas.style.width = canvasW + 'px';
+                canvas.style.height = canvasH + 'px';
             });
+
+            // Clip parent to only the displayed floor region so adjacent floors are hidden
+            var clipTop = topOffset;
+            var clipRight = parentW - (leftOffset + displayedW);
+            var clipBottom = parentH - (topOffset + displayedFloorH);
+            var clipLeft = leftOffset;
+            parent.style.clipPath = 'inset(' + clipTop + 'px ' + clipRight + 'px ' + clipBottom + 'px ' + clipLeft + 'px)';
         }
 
         function setFloor(floor) {
@@ -200,9 +239,19 @@
             })(i);
         }
 
-        // Apply initial clip after canvas is rendered
+        // Apply floor view after canvas is rendered, and on window resize
         if (floorsCount > 1) {
             setTimeout(function() { updateCanvas(); }, 500);
+            window.addEventListener('resize', function() { updateCanvas(); });
+            // Re-apply after each simulation step (canvas redraws)
+            var origStep = window.controller && window.controller.single_step;
+            if (origStep) {
+                var _origStep = origStep.bind(window.controller);
+                window.controller.single_step = function() {
+                    _origStep();
+                    setTimeout(updateCanvas, 50);
+                };
+            }
         }
     })();
     </script>
