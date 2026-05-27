@@ -1,10 +1,3 @@
-from dataclasses import dataclass
+from runaway.core.config import SimulationConfig
 
-
-@dataclass(slots=True)
-class SimulationConfig:
-    width: int = 25
-    height: int = 18
-    n_agents: int = 60
-    max_steps: int = 300
-    seed: int | None = None
+__all__ = ["SimulationConfig"]

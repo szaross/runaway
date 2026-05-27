@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Runaway Team" }]
 dependencies = [
-  "mesa>=2.2,<4.0",
+  "mesa[viz]>=2.2,<3.0",
 ]
 
 [project.optional-dependencies]
@@ -18,15 +18,26 @@ dev = [
   "pytest>=8.0",
   "ruff>=0.6",
 ]
+pygame = [
+  "pygame>=2.5",
+]
+png = [
+  "Pillow",
+]
 
 [project.scripts]
-runaway = "runaway.cli:main"
+runaway = "runaway.cli.main:main"
+runaway-png2runs = "runaway.utils.png_to_wall_runs:main"
+runaway-batch = "runaway.experiments.batch:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"runaway.scenarios" = ["*.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

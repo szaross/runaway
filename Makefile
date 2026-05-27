@@ -15,7 +15,7 @@ install:
 	pip install -e .
 
 install-dev:
-	pip install -e .[dev]
+	pip install -e .[dev,pygame]
 
 test:
 	pytest
