@@ -140,8 +140,8 @@ def _default_stair_cells(
     spawn_set = set(spawn_points)
 
     # Find the center of mass of interior cells
-    cx = sum(x for x, _ in spawn_points) // len(spawn_points) - 6
-    cy = sum(y for _, y in spawn_points) // len(spawn_points)
+    cx = 117
+    cy = 140
 
     # Find the closest spawn cell to center
     center = min(spawn_points, key=lambda p: (p[0] - cx) ** 2 + (p[1] - cy) ** 2)
@@ -150,6 +150,48 @@ def _default_stair_cells(
     for dx in range(-stair_radius, stair_radius + 1):
         for dy in range(-stair_radius, stair_radius + 1):
             nx, ny = center[0] + dx, center[1] + dy
+            if 0 <= nx < width and 0 <= ny < height and (nx, ny) in spawn_set:
+                expanded.add((nx, ny))
+
+    return sorted(expanded)
+
+
+# Hardcoded position for the second staircase (grid coordinates, origin at bottom-left).
+# Change these two values to reposition the staircase.
+# Spawn cells exist roughly in X: 56–768, Y: 80–411.
+_STAIR2_X = 245
+_STAIR2_Y = 406
+
+
+def _second_stair_cells(
+    spawn_points: list[tuple[int, int]],
+    width: int,
+    height: int,
+) -> list[tuple[int, int]]:
+    """Create a second staircase block anchored at (_STAIR2_X, _STAIR2_Y).
+
+    Snapping strategy: find cells in the closest Y band first, then pick
+    the one nearest in X. This ensures X and Y are controlled independently.
+    """
+    if len(spawn_points) < 4:
+        raise ValueError("D17 layout produced too few spawn cells for stairs.")
+
+    spawn_set = set(spawn_points)
+
+    # Expand search band until we find candidates (handles sparse upper/lower areas)
+    band = 5
+    candidates: list[tuple[int, int]] = []
+    while not candidates and band <= max(width, height):
+        candidates = [p for p in spawn_points if abs(p[1] - _STAIR2_Y) <= band]
+        band *= 2
+
+    anchor = min(candidates, key=lambda p: abs(p[0] - _STAIR2_X))
+
+    stair_radius = 2
+    expanded: set[tuple[int, int]] = set()
+    for dx in range(-stair_radius, stair_radius + 1):
+        for dy in range(-stair_radius, stair_radius + 1):
+            nx, ny = anchor[0] + dx, anchor[1] + dy
             if 0 <= nx < width and 0 <= ny < height and (nx, ny) in spawn_set:
                 expanded.add((nx, ny))
 
@@ -182,11 +224,13 @@ def build_multifloor_d17(
         for floor in range(floors_count)
     ]
 
-    stair_cells = _default_stair_cells(base_spawn_points, width, height)
+    all_stair_cells = _default_stair_cells(base_spawn_points, width, height) + _second_stair_cells(
+        base_spawn_points, width, height
+    )
     transfer_links: list[TransferLink] = []
     for lower_floor in range(floors_count - 1):
         upper_floor = lower_floor + 1
-        for x, y in stair_cells:
+        for x, y in all_stair_cells:
             transfer_links.append(
                 TransferLink(
                     source=(lower_floor, x, y),
