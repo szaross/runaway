@@ -125,12 +125,8 @@ class EvacuationModel(Model):
         }
         for floor_idx in range(config.floors_count):
             floor_idx_copy = floor_idx
-            model_reporters[f"Floor{floor_idx}_Remaining"] = (
-                lambda m, f=floor_idx_copy: sum(
-                    1
-                    for a in m._active_agents
-                    if a.position is not None and a.position[0] == f
-                )
+            model_reporters[f"Floor{floor_idx}_Remaining"] = lambda m, f=floor_idx_copy: sum(
+                1 for a in m._active_agents if a.position is not None and a.position[0] == f
             )
         self.datacollector = DataCollector(model_reporters=model_reporters)
 

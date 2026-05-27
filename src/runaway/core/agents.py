@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from math import inf
 
 from mesa import Agent
 
@@ -100,7 +99,11 @@ class EvacueeAgent(Agent):
 
         # Only consider moves that improve on current position (don't wander endlessly).
         current_distance = model.field_value(self.position)
-        improving = [(cell, score) for cell, score in candidates if model.field_value(cell) < current_distance]
+        improving = [
+            (cell, score)
+            for cell, score in candidates
+            if model.field_value(cell) < current_distance
+        ]
         pool = improving if improving else candidates
 
         # Boltzmann selection: lower score = higher probability.
@@ -111,7 +114,7 @@ class EvacueeAgent(Agent):
         r = self.random.random() * total
         cumulative = 0.0
         target = pool[0][0]
-        for (cell, _), w in zip(pool, weights):
+        for (cell, _), w in zip(pool, weights, strict=False):
             cumulative += w
             if r <= cumulative:
                 target = cell
@@ -125,4 +128,3 @@ class EvacueeAgent(Agent):
 
         self.steps_taken += 1
         model.move_agent(self, target)
-
