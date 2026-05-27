@@ -92,16 +92,17 @@ class EvacuationModel(Model):
         self.static_field = self._compute_static_field()
 
         # Place static markers for browser visualization.
-        for floor, walls in self.walls_by_floor.items():
-            for x, y in walls:
+        # For multi-floor, skip wall/exit grid placement to keep per-frame payload small
+        # (10K+ walls per floor would overwhelm Mesa's WebSocket serialization).
+        # The simulation logic uses self.walkable/walls_by_floor, not the grid.
+        if config.floors_count == 1:
+            for x, y in self.walls_by_floor.get(0, set()):
                 self.grid.place_agent(
-                    WallCell(f"wall-{floor}-{x}-{y}", self), self.to_grid_pos((floor, x, y))
+                    WallCell(f"wall-0-{x}-{y}", self), self.to_grid_pos((0, x, y))
                 )
-
-        for floor, exits in self.exits_by_floor.items():
-            for x, y in exits:
+            for x, y in self.exits_by_floor.get(0, set()):
                 self.grid.place_agent(
-                    ExitCell(f"exit-{floor}-{x}-{y}", self), self.to_grid_pos((floor, x, y))
+                    ExitCell(f"exit-0-{x}-{y}", self), self.to_grid_pos((0, x, y))
                 )
 
         for idx in range(config.n_agents):

@@ -70,12 +70,20 @@ def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
 
         return {}
 
+    # For multi-floor, limit canvas pixel size to stay performant.
+    if config.floors_count == 1:
+        canvas_w = min(config.width * 3, 2400)
+        canvas_h = min(config.height * 3, 1050)
+    else:
+        canvas_w = min(config.width * 2, 1200)
+        canvas_h = min(config.height * config.floors_count * 2, 1050)
+
     grid = CanvasGrid(
         portrayal,
         config.width,
         config.height * config.floors_count,
-        min(config.width * 3, 2400),
-        min(config.height * config.floors_count * 3, 1050),
+        canvas_w,
+        canvas_h,
     )
 
     model_params = {
@@ -100,6 +108,9 @@ def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
         model_params,
     )
     server.port = port
+
+    # Inject floors_count as a global JS variable for the floor switcher
+    server.js_code = [f"window.__FLOORS_COUNT = {config.floors_count};"] + server.js_code
 
     # Override template path to use our custom 40/60 layout
     server.settings["template_path"] = _TEMPLATES_DIR
