@@ -38,6 +38,8 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "runaway.scenarios" = ["*.json"]
+"runaway.renderers" = ["templates/*.html"]
+"runaway.statistics" = ["js/*.js"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

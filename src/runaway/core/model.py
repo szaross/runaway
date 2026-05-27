@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from heapq import heappop, heappush
 from math import inf
 
 from mesa import Model
+from mesa.datacollection import DataCollector
 from mesa.space import MultiGrid
 
 from runaway.core.agents import EvacueeAgent, ExitCell, WallCell
 from runaway.core.config import SimulationConfig
 from runaway.core.floors import Cell2D, Cell3D, TransferLink
 from runaway.scenarios import build_multifloor_d17
+from runaway.statistics.collector import MetricsCollector
+from runaway.statistics.writer import CsvResultsWriter
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,9 +40,17 @@ class SimulationSnapshot:
 class EvacuationModel(Model):
     """Mesa model for a floor-aware evacuation simulation."""
 
-    def __init__(self, config: SimulationConfig) -> None:
+    def __init__(
+        self,
+        config: SimulationConfig,
+        metrics_collector: MetricsCollector | None = None,
+    ) -> None:
         super().__init__(seed=config.seed)
         self.config = config
+        self.run_id: str = datetime.now().isoformat()
+        self.metrics = metrics_collector or MetricsCollector()
+        self._writer = CsvResultsWriter()
+        self._results_saved = False
         self.grid = MultiGrid(config.width, config.height * config.floors_count, torus=False)
 
         self.floor_specs, self.transfer_links = build_multifloor_d17(
@@ -94,9 +107,29 @@ class EvacuationModel(Model):
         for idx in range(config.n_agents):
             start = shuffled[idx]
             agent = EvacueeAgent(idx, self, start)
+            agent.start_floor = start[0]
             self._active_agents.append(agent)
             self._occupancy[start] = agent
             self.grid.place_agent(agent, self.to_grid_pos(start))
+
+        # Mesa DataCollector for standard reporters
+        model_reporters: dict[str, Callable] = {
+            "Evacuated": lambda m: m.evacuated_count,
+            "Remaining": lambda m: m.active_agents,
+            "EvacuationPct": lambda m: (
+                m.evacuated_count / m.initial_agents * 100 if m.initial_agents > 0 else 0.0
+            ),
+        }
+        for floor_idx in range(config.floors_count):
+            floor_idx_copy = floor_idx
+            model_reporters[f"Floor{floor_idx}_Remaining"] = (
+                lambda m, f=floor_idx_copy: sum(
+                    1
+                    for a in m._active_agents
+                    if a.position is not None and a.position[0] == f
+                )
+            )
+        self.datacollector = DataCollector(model_reporters=model_reporters)
 
         self._record_metrics()
         self.running = False
@@ -137,6 +170,8 @@ class EvacuationModel(Model):
                 "remaining": self.active_agents,
             }
         )
+        self.metrics.on_step(self)
+        self.datacollector.collect(self)
 
     def _compute_static_field(self) -> dict[Cell3D, float]:
         """Compute shortest path distance to the nearest exit across all floors."""
@@ -236,26 +271,32 @@ class EvacuationModel(Model):
 
         agent.position = None
         agent.evacuated = True
+        agent.evacuation_step = self.step_count
         self.evacuated_count += 1
         self._active_agents = [a for a in self._active_agents if a is not agent]
+        self.metrics.on_agent_evacuated(agent, self.step_count)
 
     def step(self) -> None:
+        # Only run agent logic when the simulation is still in progress.
+        if self.active_agents > 0 and self.step_count < self.config.max_steps:
+            activation_order = self._active_agents[:]
+            # Process agents closest to exit first so vacated cells cascade back.
+            activation_order.sort(key=lambda a: self.static_field.get(a.position, inf))
+
+            for agent in activation_order:
+                if not agent.evacuated:
+                    agent.step()
+
+            self.step_count += 1
+            self._record_metrics()
+            self.latest_snapshot = self.snapshot()
+
+        # Check termination — save results exactly once, then stop.
         if self.active_agents == 0 or self.step_count >= self.config.max_steps:
-            self.running = False
-            return
-
-        activation_order = self._active_agents[:]
-        self.random.shuffle(activation_order)
-
-        for agent in activation_order:
-            if not agent.evacuated:
-                agent.step()
-
-        self.step_count += 1
-        self._record_metrics()
-        self.latest_snapshot = self.snapshot()
-
-        if self.active_agents == 0 or self.step_count >= self.config.max_steps:
+            if not self._results_saved:
+                self._writer.save(self.run_id, self.config, self.metrics)
+                self._results_saved = True
+                print(f"Results saved to results/sim_{self.run_id.replace(':', '-')}/")
             self.running = False
 
     def run(self) -> None:
