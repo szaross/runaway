@@ -128,3 +128,4 @@ class EvacueeAgent(Agent):
 
         self.steps_taken += 1
         model.move_agent(self, target)
+
