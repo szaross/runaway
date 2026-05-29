@@ -37,6 +37,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Vertical transfer links mode between floors",
     )
     parser.add_argument(
+        "--stair-cost",
+        type=int,
+        default=None,
+        help="Cost (in steps) for traversing one floor of stairs (default: height//15)",
+    )
+    parser.add_argument(
         "--visualize",
         action="store_true",
         help="Run Mesa browser visualization server",
@@ -95,8 +101,8 @@ def main() -> None:
 
     if (args.width is None) != (args.height is None):
         parser.error("--width and --height must be provided together")
-    if args.floors < 1:
-        parser.error("--floors must be >= 1")
+    if args.floors < 1 or args.floors > 4:
+        parser.error("--floors must be between 1 and 4")
     if args.visualize and args.renderer == "pygame":
         parser.error("--visualize cannot be used together with --renderer pygame")
 
@@ -110,6 +116,7 @@ def main() -> None:
         seed=args.seed,
         floors_count=args.floors,
         vertical_links_mode=args.stairs_mode,
+        stair_traversal_cost=args.stair_cost,
     )
 
     renderer = "mesa" if args.visualize else args.renderer

@@ -10,7 +10,7 @@ from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.space import MultiGrid
 
-from runaway.core.agents import EvacueeAgent, ExitCell, WallCell
+from runaway.core.agents import EvacueeAgent, ExitCell, StairCell, WallCell
 from runaway.core.config import SimulationConfig
 from runaway.core.floors import Cell2D, Cell3D, TransferLink
 from runaway.scenarios import build_multifloor_d17
@@ -58,6 +58,7 @@ class EvacuationModel(Model):
             config.height,
             config.floors_count,
             vertical_links_mode=config.vertical_links_mode,
+            stair_traversal_cost=config.stair_traversal_cost,
         )
         self.walls_by_floor = {spec.level: set(spec.walls) for spec in self.floor_specs}
         self.exits_by_floor = {spec.level: set(spec.exits) for spec in self.floor_specs}
@@ -91,17 +92,19 @@ class EvacuationModel(Model):
 
         self.static_field = self._compute_static_field()
 
-        # Place static markers for browser visualization.
-        for floor, walls in self.walls_by_floor.items():
-            for x, y in walls:
+        # Place static markers for browser visualization on all floors.
+        for floor in range(config.floors_count):
+            for x, y in self.walls_by_floor.get(floor, set()):
                 self.grid.place_agent(
                     WallCell(f"wall-{floor}-{x}-{y}", self), self.to_grid_pos((floor, x, y))
                 )
-
-        for floor, exits in self.exits_by_floor.items():
-            for x, y in exits:
+            for x, y in self.exits_by_floor.get(floor, set()):
                 self.grid.place_agent(
                     ExitCell(f"exit-{floor}-{x}-{y}", self), self.to_grid_pos((floor, x, y))
+                )
+            for x, y in self.transfer_nodes_by_floor.get(floor, set()):
+                self.grid.place_agent(
+                    StairCell(f"stair-{floor}-{x}-{y}", self), self.to_grid_pos((floor, x, y))
                 )
 
         for idx in range(config.n_agents):
@@ -122,12 +125,8 @@ class EvacuationModel(Model):
         }
         for floor_idx in range(config.floors_count):
             floor_idx_copy = floor_idx
-            model_reporters[f"Floor{floor_idx}_Remaining"] = (
-                lambda m, f=floor_idx_copy: sum(
-                    1
-                    for a in m._active_agents
-                    if a.position is not None and a.position[0] == f
-                )
+            model_reporters[f"Floor{floor_idx}_Remaining"] = lambda m, f=floor_idx_copy: sum(
+                1 for a in m._active_agents if a.position is not None and a.position[0] == f
             )
         self.datacollector = DataCollector(model_reporters=model_reporters)
 
@@ -235,6 +234,13 @@ class EvacuationModel(Model):
 
     def field_value(self, pos: Cell3D) -> float:
         return self.static_field.get(pos, inf)
+
+    def transfer_cost(self, source: Cell3D, target: Cell3D) -> int:
+        """Return the traversal cost between two connected cells."""
+        for dest, cost in self.transfer_graph.get(source, []):
+            if dest == target:
+                return cost
+        return 1
 
     def move_agent(self, agent: EvacueeAgent, target: Cell3D) -> bool:
         current = agent.position

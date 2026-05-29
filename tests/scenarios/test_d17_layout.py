@@ -101,7 +101,9 @@ def test_multifloor_d17_clones_layout_and_adds_stairs() -> None:
     floors, links = build_multifloor_d17(320, 181, 3, vertical_links_mode="default_stairs")
 
     assert len(floors) == 3
-    assert floors[0].walls == floors[1].walls == floors[2].walls
+    # Upper floors seal exit gaps: upper walls = base walls + exits
+    assert floors[1].walls == floors[2].walls
+    assert floors[1].walls == floors[0].walls | floors[0].exits
     assert floors[0].exits
     assert floors[1].exits == set()
     assert floors[2].exits == set()

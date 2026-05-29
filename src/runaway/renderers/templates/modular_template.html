@@ -21,6 +21,14 @@
             flex-shrink: 0;
         }
         .topbar h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.5px; margin: 0; padding: 0; }
+        .topbar-center { display: flex; gap: 4px; align-items: center; }
+        .topbar-center .floor-btn {
+            background: #334155; border: none; color: #fff;
+            padding: 5px 14px; border-radius: 6px; cursor: pointer;
+            font-size: 12px; font-weight: 500; transition: background 0.15s;
+        }
+        .topbar-center .floor-btn:hover { background: #475569; }
+        .topbar-center .floor-btn.active { background: #0ea5e9; }
         .topbar-controls { display: flex; gap: 8px; align-items: center; }
         .topbar-controls button {
             background: #334155; border: none; color: #fff;
@@ -68,15 +76,22 @@
             position: relative;
             display: flex; align-items: center; justify-content: center;
             width: 100%; height: 100%;
+            overflow: hidden;
         }
         canvas.world-grid {
-            position: relative !important;
+            position: relative;
             display: block;
-            max-width: 100% !important;
-            max-height: 100% !important;
-            width: auto !important;
-            height: auto !important;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
             object-fit: contain;
+        }
+        /* Multi-floor: JS will override canvas positioning via .multifloor-canvas class */
+        .world-grid-parent.multifloor canvas.world-grid {
+            position: absolute !important;
+            max-width: none !important;
+            max-height: none !important;
         }
         /* Hide the interaction overlay canvas (second world-grid) */
         .world-grid-parent canvas.world-grid:nth-child(2) {
@@ -90,6 +105,7 @@
     <div class="page">
         <div class="topbar">
             <h1>{{ model_name }}</h1>
+            <div class="topbar-center" id="floor-buttons"></div>
             <div class="topbar-controls">
                 <button id="play-pause"><a style="color:inherit;text-decoration:none">Start</a></button>
                 <button id="step"><a style="color:inherit;text-decoration:none">Step</a></button>
@@ -148,5 +164,95 @@
         {% for script in scripts %}
             {% raw script %}
         {% end %}
+    </script>
+
+    <script>
+    // Floor switching logic (runs after element scripts set window.__FLOORS_COUNT)
+    (function() {
+        var floorsCount = window.__FLOORS_COUNT || 1;
+        var currentFloor = 0;
+        var container = document.getElementById('floor-buttons');
+
+        function updateCanvas() {
+            if (floorsCount <= 1) return;
+            var parent = document.querySelector('.world-grid-parent');
+            if (!parent) return;
+            parent.classList.add('multifloor');
+
+            var canvases = parent.querySelectorAll('canvas.world-grid');
+            if (!canvases.length) return;
+
+            var parentW = parent.clientWidth;
+            var parentH = parent.clientHeight;
+            var canvasW = canvases[0].width;
+            var canvasH = canvases[0].height;
+            var floorH = canvasH / floorsCount;
+
+            // Scale so one floor fills the parent area
+            var scaleX = parentW / canvasW;
+            var scaleY = parentH / floorH;
+            var scale = Math.min(scaleX, scaleY);
+
+            var displayedW = canvasW * scale;
+            var displayedFloorH = floorH * scale;
+            var leftOffset = (parentW - displayedW) / 2;
+            var topOffset = (parentH - displayedFloorH) / 2;
+
+            // In Mesa canvas: floor 0 is at bottom (high y-pixel), floor N-1 at top (low y-pixel).
+            // Canvas pixel row for floor f top = (floorsCount - 1 - f) * floorH
+            var floorTopInCanvas = (floorsCount - 1 - currentFloor) * floorH;
+
+            canvases.forEach(function(canvas) {
+                canvas.style.transformOrigin = '0 0';
+                canvas.style.transform = 'scale(' + scale + ')';
+                canvas.style.left = leftOffset + 'px';
+                canvas.style.top = (topOffset - floorTopInCanvas * scale) + 'px';
+                canvas.style.width = canvasW + 'px';
+                canvas.style.height = canvasH + 'px';
+            });
+
+            // Clip parent to only the displayed floor region so adjacent floors are hidden
+            var clipTop = topOffset;
+            var clipRight = parentW - (leftOffset + displayedW);
+            var clipBottom = parentH - (topOffset + displayedFloorH);
+            var clipLeft = leftOffset;
+            parent.style.clipPath = 'inset(' + clipTop + 'px ' + clipRight + 'px ' + clipBottom + 'px ' + clipLeft + 'px)';
+        }
+
+        function setFloor(floor) {
+            currentFloor = floor;
+            var btns = container.querySelectorAll('.floor-btn');
+            btns.forEach(function(btn, i) {
+                btn.classList.toggle('active', i === floor);
+            });
+            updateCanvas();
+        }
+
+        // Create buttons
+        for (var i = 0; i < floorsCount; i++) {
+            (function(floor) {
+                var btn = document.createElement('button');
+                btn.className = 'floor-btn' + (floor === 0 ? ' active' : '');
+                btn.textContent = (floor + 1);
+                btn.addEventListener('click', function() { setFloor(floor); });
+                container.appendChild(btn);
+            })(i);
+        }
+
+        // Apply floor view after canvas is rendered, and on window resize
+        if (floorsCount > 1) {
+            setTimeout(function() { updateCanvas(); }, 500);
+            window.addEventListener('resize', function() { updateCanvas(); });
+            // Re-apply after each simulation step (canvas redraws)
+            var origStep = window.controller && window.controller.single_step;
+            if (origStep) {
+                var _origStep = origStep.bind(window.controller);
+                window.controller.single_step = function() {
+                    _origStep();
+                    setTimeout(updateCanvas, 50);
+                };
+            }
+        }
+    })();
     </script>
 </body>
