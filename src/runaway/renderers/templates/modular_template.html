@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<head>
+    <title>{{ model_name }}</title>
+    {% for file_name in package_css_includes %}
+        <link href="/static/css/{{ file_name }}" type="text/css" rel="stylesheet" />
+    {% end %}
+    {% for file_name in local_css_includes %}
+        <link href="/local/{{ file_name }}" type="text/css" rel="stylesheet" />
+    {% end %}
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; }
+
+        .page { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
+
+        /* Top bar - full width */
+        .topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 24px;
+            background: #1e293b; color: #fff;
+            flex-shrink: 0;
+        }
+        .topbar h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.5px; margin: 0; padding: 0; }
+        .topbar-controls { display: flex; gap: 8px; align-items: center; }
+        .topbar-controls button {
+            background: #334155; border: none; color: #fff;
+            padding: 5px 12px; border-radius: 6px; cursor: pointer;
+            font-size: 12px; font-weight: 500; transition: background 0.15s;
+        }
+        .topbar-controls button:hover { background: #475569; }
+        .topbar-controls .fps-group { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #94a3b8; }
+        .topbar-controls .fps-group input {
+            width: 44px; background: #334155; border: 1px solid #475569;
+            color: #fff; border-radius: 4px; padding: 3px 5px; font-size: 11px; text-align: center;
+        }
+        .topbar .step-display { font-size: 11px; color: #94a3b8; margin-left: 16px; }
+
+        /* Content area - 40/60 split */
+        .content { display: flex; flex: 1; overflow: hidden; }
+        .panel-left {
+            width: 40%; height: 100%;
+            overflow-y: auto;
+            border-right: 1px solid #e2e8f0;
+            background: #ffffff;
+            padding: 12px;
+        }
+        .panel-right {
+            width: 60%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            background: #f1f5f9;
+            overflow: hidden;
+            padding: 8px;
+        }
+
+        #sidebar { display: flex; flex-direction: column; gap: 10px; }
+
+        /* Canvas sizing - fit inside panel without clipping */
+        #elements {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; height: 100%;
+        }
+        #elements > div { 
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; height: 100%;
+        }
+        /* Override Mesa's position:absolute on canvas.world-grid */
+        .world-grid-parent {
+            position: relative;
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; height: 100%;
+        }
+        canvas.world-grid {
+            position: relative !important;
+            display: block;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            width: auto !important;
+            height: auto !important;
+            object-fit: contain;
+        }
+        /* Hide the interaction overlay canvas (second world-grid) */
+        .world-grid-parent canvas.world-grid:nth-child(2) {
+            position: absolute !important;
+            top: 0; left: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="topbar">
+            <h1>{{ model_name }}</h1>
+            <div class="topbar-controls">
+                <button id="play-pause"><a style="color:inherit;text-decoration:none">Start</a></button>
+                <button id="step"><a style="color:inherit;text-decoration:none">Step</a></button>
+                <button id="reset"><a style="color:inherit;text-decoration:none">Reset</a></button>
+                <div class="fps-group">
+                    <span>FPS</span>
+                    <input id="fps-input" type="number" min="1" max="60" value="10" />
+                </div>
+                <span class="step-display">Step: <span id="currentStep">0</span></span>
+            </div>
+        </div>
+        <div class="content">
+            <div class="panel-left">
+                <div id="sidebar"></div>
+            </div>
+            <div class="panel-right">
+                <div id="elements"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden FPS slider for compatibility with runcontrol.js -->
+    <div style="display:none"><input id="fps" type="text" /></div>
+
+    <script src="/static/external/bootstrap-5.1.3-dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/external/bootstrap-slider-11.0.2/dist/bootstrap-slider.min.js"></script>
+
+    {% for file_name in package_js_includes %}
+        <script src="/static/js/{{ file_name }}" type="text/javascript"></script>
+    {% end %}
+    {% for file_name in local_js_includes %}
+        <script src="/local/{{ file_name }}" type="text/javascript"></script>
+    {% end %}
+
+    <script>
+        var port = {{ port }};
+    </script>
+    <script src="/static/js/runcontrol.js"></script>
+
+    <script>
+    (function() {
+        var DEFAULT_FPS = 10;
+        var fpsInput = document.getElementById('fps-input');
+        fpsInput.addEventListener('change', function() {
+            var val = Math.max(1, Math.min(60, parseInt(this.value) || DEFAULT_FPS));
+            this.value = val;
+            controller.updateFPS(val);
+        });
+        // Apply default FPS immediately after controller is ready
+        controller.updateFPS(DEFAULT_FPS);
+    })();
+    </script>
+
+    <!-- Element-specific scripts -->
+    <script>
+        {% for script in scripts %}
+            {% raw script %}
+        {% end %}
+    </script>
+</body>

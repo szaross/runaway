@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from importlib import import_module
 
 import mesa
@@ -7,6 +8,10 @@ import mesa
 from runaway.core.agents import EvacueeAgent, ExitCell, WallCell
 from runaway.core.config import SimulationConfig
 from runaway.core.model import EvacuationModel
+from runaway.statistics.charts import create_evacuation_charts
+from runaway.statistics.dashboard import StatsDashboard
+
+_TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
 
 
 def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
@@ -68,9 +73,9 @@ def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
     grid = CanvasGrid(
         portrayal,
         config.width,
-        config.height,
+        config.height * config.floors_count,
         min(config.width * 3, 2400),
-        min(config.height * 3, 1050),
+        min(config.height * config.floors_count * 3, 1050),
     )
 
     model_params = {
@@ -85,11 +90,18 @@ def launch_server(config: SimulationConfig, *, port: int = 8521) -> None:
         )
     }
 
+    stats_dashboard = StatsDashboard()
+    charts = create_evacuation_charts()
+
     server = ModularServer(
         EvacuationModel,
-        [grid],
+        [stats_dashboard, grid, *charts],
         "Runaway Evacuation",
         model_params,
     )
     server.port = port
+
+    # Override template path to use our custom 40/60 layout
+    server.settings["template_path"] = _TEMPLATES_DIR
+
     server.launch()

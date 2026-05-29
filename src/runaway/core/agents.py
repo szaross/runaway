@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from math import inf
 
 from mesa import Agent
@@ -32,6 +33,11 @@ class ExitCell(Agent):
 class EvacueeAgent(Agent):
     """A person attempting to reach the nearest exit."""
 
+    # Temperature for Boltzmann selection: higher = more random, lower = more greedy
+    _TEMPERATURE = 1.5
+    # Penalty per occupied neighbour — discourages crowded corridors
+    _CONGESTION_WEIGHT = 1.2
+
     def __init__(
         self,
         unique_id: int,
@@ -46,6 +52,13 @@ class EvacueeAgent(Agent):
 
         self.position: Cell3D | None = start_pos
         self.evacuated = False
+        self.start_floor: int | None = None
+        self.steps_taken: int = 0
+        self.evacuation_step: int | None = None
+
+    def _congestion_at(self, pos: Cell3D) -> int:
+        model = self.model
+        return sum(1 for n in model.neighbors(pos) if model.is_occupied(n))
 
     def step(self) -> None:
         if self.position is None or self.evacuated:
@@ -61,18 +74,31 @@ class EvacueeAgent(Agent):
         for nxt in neighbors:
             if nxt not in model.exits and model.is_occupied(nxt):
                 continue
-            candidates.append((nxt, model.field_value(nxt)))
+            score = model.field_value(nxt) + self._CONGESTION_WEIGHT * self._congestion_at(nxt)
+            candidates.append((nxt, score))
 
         if not candidates:
             return
 
-        current_score = model.field_value(self.position)
-        best_score = min(score for _, score in candidates)
+        # Only consider moves that improve on current position (don't wander endlessly).
+        current_distance = model.field_value(self.position)
+        improving = [(cell, score) for cell, score in candidates if model.field_value(cell) < current_distance]
+        pool = improving if improving else candidates
 
-        if best_score >= current_score and current_score < inf:
-            # Agent does not move if no neighbor improves current position.
-            return
+        # Boltzmann selection: lower score = higher probability.
+        min_score = min(score for _, score in pool)
+        weights = [math.exp(-(score - min_score) / self._TEMPERATURE) for _, score in pool]
+        total = sum(weights)
 
-        best_cells = [cell for cell, score in candidates if score == best_score]
-        target = self.random.choice(best_cells)
+        r = self.random.random() * total
+        cumulative = 0.0
+        target = pool[0][0]
+        for (cell, _), w in zip(pool, weights):
+            cumulative += w
+            if r <= cumulative:
+                target = cell
+                break
+
+        self.steps_taken += 1
         model.move_agent(self, target)
+
